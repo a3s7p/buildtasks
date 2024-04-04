@@ -141,6 +141,11 @@ if [[ -z "$no_screens" ]]; then
         tkldev)
             info "TKLDev build - disabling screenshots as no web UI"
             no_screens="true";;
+        gitlab)
+            # GitLab takes ages to start...
+            export MAX_COUNT=70 # possibly overkill
+            clicksnap_mod=gitlab
+            ;;
         *)
             clicksnap_mod=$(sed "s|-|_|g" <<<$appname);;
     esac
@@ -184,6 +189,9 @@ if [[ -z "$skip_setup" ]]; then
             if [[ $allowed_age -lt $(date +%s) ]]; then
                 info "Attempting clicksnap update"
                 clone_or_pull $BASE_DIR/clicksnap turnkeylinux/clicksnap
+                cd /clicksnap
+                cargo build
+                cd -
                 touch /root/clicksnap-setup.done
             fi
             if ! ls $BASE_DIR/clicksnap/src/apps/ \
