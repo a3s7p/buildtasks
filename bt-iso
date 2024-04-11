@@ -81,12 +81,14 @@ get_version() {
 git_unshallow() {
     local dir=$1
     local branch=$2
-    # assume TKL remote is 'origin'
-    local remote=origin
+    # find remote name for turnkey repo
+    local remote=$(\
+        sed -En '\|github.com.turnkeylinux.*fetch\)$| s|([a-z]*)\s.*|\1|p' \
+        <<<$(git remote -v))
     cd $dir
     if [[ "$(git symbolic-ref --short HEAD)" != "$branch" ]]; then
-        git remote set-branches origin '*'
-        git fetch origin --unshallow 2>/dev/null || git fetch origin
+        git remote set-branches "$remote" '*'
+        git fetch "$remote" --unshallow 2>/dev/null || git fetch "$remote"
         git checkout $branch || git checkout $branch-dev
     fi
     cd -
@@ -292,6 +294,7 @@ else
 fi
 
 if [[ -z "$no_screens" ]]; then
+
     if [[ -n "$use_existing" ]]; then
         info "Product iso being loaded as docker container"
         # TODO make dockerize output more quiet when --quiet used - workaround via tail
@@ -303,8 +306,10 @@ if [[ -z "$no_screens" ]]; then
     fi
     
     info "Creating new product docker container from image and starting"
-    app_cont_id=$(podman run -dt --tmpfs /tmp --tmpfs /run --tmpfs /run/lock $image_name)
-    app_ip=$(podman inspect $app_cont_id --format "{{.NetworkSettings.IPAddress}}")
+    app_cont_id=$(podman run -dt -p 80:80 -p 443:443 -p 12321:12321 \
+                    -p 12322:12322 --tmpfs /tmp --tmpfs /run \
+                    --tmpfs /run/lock $image_name)
+    #app_ip=$(podman inspect $app_cont_id --format "{{.NetworkSettings.IPAddress}}")
 
     export TKL_SCREENSHOT_PATH=$BT_PRODUCTS/$appname/build/screens
     mkdir -p $TKL_SCREENSHOT_PATH
@@ -314,11 +319,12 @@ if [[ -z "$no_screens" ]]; then
     info "Starting selenium container"
     INIT_CONF=/turnkey/public/tkldev-docker/inithooks.conf
     unset add_hosts
+    host_ip=$(hostname -I | awk '{print $1}')
     if [[ -f "$INIT_CONF" ]]; then
         info "Loading default conf and adding fqdn to selenium hosts file"
         source $INIT_CONF
         [[ -n "$APP_DOMAIN" ]] || fatal "APP_DOMAIN not set, please check $INIT_CONF"
-        add_hosts="--add-host=${APP_DOMAIN}:${app_ip}"
+        add_hosts="--add-host=${APP_DOMAIN}:${host_ip}"
     else
         warning "$INIT_CONF not found - continuing with password defaults - may fail"
     fi
@@ -326,17 +332,26 @@ if [[ -z "$no_screens" ]]; then
     # check if selenium container already exists
     existing_instance=$(podman ps -a --format "{{.ID}}:{{.Image}}" \
                 | grep "$SELENIUM_CONT:$SELENIUM_TAG" || [[ $? == 1 ]])
-    existing_id=$(sed -En "s|(^[a-f0-9]+):.*|\1|p" <<<"$existing_instance")
-    if [[ -n "$existing_id" ]]; then
-        info "existing selenium container found - cleaning"
-        podman container stop $existing_id >/dev/null 2>&1 || [[ $? -eq 1 ]]
-        podman container rm $existing_id >/dev/null 2>&1 || [[ $? -eq 1 ]]
+    if [[ $(wc -l <<<"existing_instance") -gt 1 ]]; then
+        fatal "More than one selenium instance found"
     fi
-    info "starting new selenium webdriver container (may require download)"
-    sel_cont_id=$(podman run -d -p 4444:4444 -p 7900:7900 $add_hosts \
+    existing_id=$(sed -En "s|(^[a-f0-9]+):.*|\1|p" <<<"$existing_instance")
+    if [[ -z "$existing_id" ]]; then
+        info "no existing selenium container found - starting one"
+        #podman container stop $existing_id >/dev/null 2>&1 || [[ $? -eq 1 ]]
+        #podman container rm $existing_id >/dev/null 2>&1 || [[ $? -eq 1 ]]A
+        sel_cont_id=$(podman run -d -p 4444:4444 -p 7900:7900 $add_hosts \
                         --shm-size="2g" $SELENIUM_CONT:$SELENIUM_TAG)
+    else
+        info "Local container found (id: $existing_id)"
+        info "Assuming it has proper hosts added already (may fail if not)"
+        sel_cont_id="$existing_id"
+    fi
+    #info "starting new selenium webdriver container (may require download)"
+    #sel_cont_id=$(podman run -d -p 4444:4444 -p 7900:7900 $add_hosts \
+    #                    --shm-size="2g" $SELENIUM_CONT:$SELENIUM_TAG)
 
-    # wait until container status is 'running'
+    info "waiting until container status is 'running'"
     while [[ $(container_status $sel_cont_id) != "running" ]]; do
         sleep 1
     done
@@ -346,7 +361,7 @@ if [[ -z "$no_screens" ]]; then
            sleep 1
         fi
         if [[ "$appname" != 'tkldev' ]]; then
-            if ! curl --insecure https://$app_ip:12321 >/dev/null 2>&1; then
+            if ! curl --insecure https://$host_ip:12321 >/dev/null 2>&1; then
                 sleep 1
             fi
         else
