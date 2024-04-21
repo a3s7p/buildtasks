@@ -326,12 +326,11 @@ if [[ -z "$no_screens" ]]; then
     info "Starting selenium container"
     INIT_CONF=/turnkey/public/tkldev-docker/inithooks.conf
     unset add_hosts
-    host_ip=$(hostname -I | awk '{print $1}')
     if [[ -f "$INIT_CONF" ]]; then
         info "Loading default conf and adding FQDN:${APP_DOMAIN} pointing to IP:${HOST_IP} to selenium hosts file"
         source "$INIT_CONF"
         [[ -n "$APP_DOMAIN" ]] || fatal "APP_DOMAIN not set, please check $INIT_CONF"
-        add_hosts="--add-host=${APP_DOMAIN}:${host_ip}"
+        add_hosts="--add-host=${APP_DOMAIN}:${HOST_IP}"
     else
         warning "$INIT_CONF not found - continuing with password defaults - may fail"
     fi
@@ -368,7 +367,7 @@ if [[ -z "$no_screens" ]]; then
            sleep 1
         fi
         if [[ "$appname" != 'tkldev' ]]; then
-            if ! curl --insecure "https://$host_ip:12321" >/dev/null 2>&1; then
+            if ! curl --insecure "https://$HOST_IP:12321" >/dev/null 2>&1; then
                 sleep 1
             fi
         else
