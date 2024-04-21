@@ -161,6 +161,9 @@ export BT
 export BT_CONFIG="$BT/config"
 . "$BT_CONFIG/common.cfg"
 
+HOST_IP=$(hostname -I | awk '{print $1}')
+export HOST_IP
+
 if [[ "$publish" == "yes" ]]; then
     unset msg
     [[ -n "$BT_PUBLISH_IMGS" ]] || fatal "BT_PUBLISH_IMGS not set"
@@ -325,7 +328,7 @@ if [[ -z "$no_screens" ]]; then
     unset add_hosts
     host_ip=$(hostname -I | awk '{print $1}')
     if [[ -f "$INIT_CONF" ]]; then
-        info "Loading default conf and adding fqdn to selenium hosts file"
+        info "Loading default conf and adding FQDN:${APP_DOMAIN} pointing to IP:${HOST_IP} to selenium hosts file"
         source "$INIT_CONF"
         [[ -n "$APP_DOMAIN" ]] || fatal "APP_DOMAIN not set, please check $INIT_CONF"
         add_hosts="--add-host=${APP_DOMAIN}:${host_ip}"
@@ -401,7 +404,11 @@ if [[ -z "$no_screens" ]]; then
             sleep 2
         fi
     done
-    [[ $exit_code -eq 0 ]] || fatal "Screenshots failed after $max_tries attempts"
+    if [[ ! $exit_code -eq 0 ]];
+        warning "Screenshots failed, stopping $appname container: $app_cont_id"
+        podman stop "$app_cont_id"
+        fatal "Screenshots failed after $max_tries attempts - container stopped"
+    fi
 fi
 
 mkdir -p "$BT_ISOS"
