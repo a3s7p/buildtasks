@@ -301,7 +301,6 @@ else
 fi
 
 if [[ -z "$no_screens" ]]; then
-
     if [[ -n "$use_existing" ]]; then
         info "Product iso being loaded as docker container"
         # TODO make dockerize output more quiet when --quiet used - workaround via tail
@@ -403,7 +402,7 @@ if [[ -z "$no_screens" ]]; then
             sleep 2
         fi
     done
-    if [[ ! $exit_code -eq 0 ]];
+    if [[ ! $exit_code -eq 0 ]]; then
         warning "Screenshots failed, stopping $appname container: $app_cont_id"
         podman stop "$app_cont_id"
         fatal "Screenshots failed after $max_tries attempts - container stopped"
