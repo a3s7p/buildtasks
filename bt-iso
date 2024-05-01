@@ -8,6 +8,7 @@
 # Free Software Foundation; either version 3 of the License, or (at your
 # option) any later version.
 
+[[ -z "$BT_DEBUG" ]] || set -x
 
 fatal() { echo "FATAL [$(basename "$0")]: $*" 1>&2; exit 1; }
 warning() { echo "WARNING [$(basename "$0")]: $*"; }
@@ -116,6 +117,15 @@ container_status() {
     podman container inspect "$1" --format "{{.State.Status}}"
 }
 
+check_debug() {
+    local msg=$1
+    if [[ -z "$DEBUG" ]]; then
+        fatal "$msg - set DEBUG to force"
+    else
+        warning "$msg - build may fail"
+    fi
+}
+
 export WEBDRIVER_CONNECT_ATTEMPTS=${WEBDRIVER_CONNECT_ATTEMPTS:-200}
 export WEBDRIVER_CONNECT_TIMEOUT=${WEBDRIVER_CONNECT_TIMEOUT:-5}
 ARGS="$*"
@@ -126,7 +136,9 @@ while [[ "$1" != "" ]]; do
         --publish)          publish="yes";;
         -n|--no-screens)    no_screens="true";;
         -s|--skip-setup)    skip_setup="true";;
-        -u|--use-existing)  use_existing="true";;
+        -u|--use-existing)  use_existing="true"
+                            shift
+                            iso="$1";;
         *)                  if [[ -n "$appname" ]]; then
                                 usage "Accepts only one appliance name"
                             else
@@ -137,7 +149,6 @@ while [[ "$1" != "" ]]; do
 done
 
 [[ -n "$appname" ]] || usage "Must give one app name"
-[[ -z "$BT_DEBUG" ]] || set -x
 
 # adjust which clicksnap module to use where need be
 if [[ -z "$no_screens" ]]; then
@@ -161,8 +172,21 @@ export BT
 export BT_CONFIG="$BT/config"
 . "$BT_CONFIG/common.cfg"
 
+INIT_CONF=/turnkey/public/tkldev-docker/inithooks.conf
+if [[ ! -f "$INIT_CONF" ]]; then
+    check_debug "Inithooks preseed file ($INIT_CONF) not found"
+else
+    . "$INIT_CONF"
+fi
+if [[ -z "$APP_DOMAIN" ]]; then
+    check_debug "APP_DOMAIN not set"
+fi
+
 HOST_IP=$(hostname -I | awk '{print $1}')
 export HOST_IP
+if [[ -z "$HOST_IP" ]]; then
+    check_debug "HOST_IP not set"
+fi
 
 if [[ "$publish" == "yes" ]]; then
     unset msg
@@ -203,14 +227,10 @@ if [[ -z "$skip_setup" ]]; then
                 cd -
                 touch /root/clicksnap-setup.done
             fi
-            if ! [[ $clicksnap_mod == "*$BASE_DIR/clicksnap/src/apps/*" ]]; then
-                # double check that it doesn't reuse another module
-                if ! grep -q "^    h.insert(\"$clicksnap_mod\", Box::new(" \
-                        $BASE_DIR/clicksnap/src/apps/mod.rs; then
-
-                    fatal "Clicksnap code for $clicksnap_mod not found" \
+            if ! grep -q "^mod $clicksnap_mod;" \
+                    "$BASE_DIR/clicksnap/src/apps/mod.rs"; then
+                fatal "Clicksnap code for $clicksnap_mod not found" \
                           " (checked in $BASE_DIR/clicksnap/src/apps/)"
-                fi
             fi
         fi
     fi
@@ -323,15 +343,10 @@ if [[ -z "$no_screens" ]]; then
     SELENIUM_TAG=4.7.2-20221219
 
     info "Starting selenium container"
-    INIT_CONF=/turnkey/public/tkldev-docker/inithooks.conf
     unset add_hosts
-    if [[ -f "$INIT_CONF" ]]; then
-        info "Loading default conf and adding FQDN:${APP_DOMAIN} pointing to IP:${HOST_IP} to selenium hosts file"
-        source "$INIT_CONF"
-        [[ -n "$APP_DOMAIN" ]] || fatal "APP_DOMAIN not set, please check $INIT_CONF"
+    if [[ -n "$APP_DOMAIN" ]]; then
+        info "Adding FQDN:${APP_DOMAIN} pointing to IP:${HOST_IP} to selenium hosts file"
         add_hosts="--add-host=${APP_DOMAIN}:${HOST_IP}"
-    else
-        warning "$INIT_CONF not found - continuing with password defaults - may fail"
     fi
 
     # check if selenium container already exists
