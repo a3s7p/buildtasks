@@ -202,11 +202,6 @@ cd "$BT"
 BASE_DIR=/turnkey/public
 COMMIT_ID=$(git rev-parse --short HEAD)
 if [[ -z "$skip_setup" ]]; then
-    # Leverage tkldev-setup to ensure important repos are cloned and at latest
-    # commit; also ensures RELEASE & ARCH are set.
-    tkldev-setup "$appname" \
-        || warning "tkldev-setup failed. Attempting to continue anyway."
-
     # unless -n|--no-screens set up clicksnap and check for clicksnap file
     if [[ -z "$no_screens" ]]; then
         if [[ ! -f /root/clicksnap-setup.done ]]; then
@@ -229,6 +224,11 @@ if [[ -z "$skip_setup" ]]; then
             fi
         fi
     fi
+
+    # Leverage tkldev-setup to ensure important repos are cloned and at latest
+    # commit; also ensures RELEASE & ARCH are set.
+    tkldev-setup "$appname" \
+        || warning "tkldev-setup failed. Attempting to continue anyway."
 
     # if TKL version doesn't match host, check out the relevant branches and
     # attempt to download the right bootstrap; otherwise build it
