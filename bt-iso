@@ -220,7 +220,7 @@ if [[ -z "$skip_setup" ]]; then
                 touch /root/clicksnap-setup.done
             fi
         fi
-        if ! grep $appname <<<$(clicksnap list); then
+        if ! grep -q $appname <<<$(clicksnap list); then
             fatal "Clicksnap code for $appname not found"
         fi
     fi
