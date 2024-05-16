@@ -150,7 +150,7 @@ done
 
 [[ -n "$appname" ]] || usage "Must give one app name"
 
-# adjust which clicksnap module to use where need be
+# don't try screens for tkldev & extend MAX_COUNT for gitlab
 if [[ -z "$no_screens" ]]; then
     case $appname in
         tkldev)
@@ -159,10 +159,7 @@ if [[ -z "$no_screens" ]]; then
         gitlab)
             # GitLab takes ages to start...
             export MAX_COUNT=70 # possibly overkill
-            clicksnap_mod=gitlab
             ;;
-        *)
-            clicksnap_mod="${appname//-/_}";;
     esac
 fi
 
@@ -227,9 +224,8 @@ if [[ -z "$skip_setup" ]]; then
                 cd -
                 touch /root/clicksnap-setup.done
             fi
-            if [[ ! -d "$BASE_DIR/clicksnap/src/apps/$clicksnap_mod" ]]; then
-                fatal "Clicksnap code for $clicksnap_mod not found" \
-                          " (checked in $BASE_DIR/clicksnap/src/apps/)"
+            if ! grep $appname <<<$(clicksnap list); then
+                fatal "Clicksnap code for $appname not found"
             fi
         fi
     fi
