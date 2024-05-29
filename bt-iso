@@ -150,14 +150,14 @@ done
 
 [[ -n "$appname" ]] || usage "Must give one app name"
 
-# don't try screens for tkldev & extend MAX_COUNT for gitlab
+# don't try screens for tkldev & extend MAX_COUNT for gitlab & canvas
 if [[ -z "$no_screens" ]]; then
     case $appname in
         tkldev)
             info "TKLDev build - disabling screenshots as no web UI"
             no_screens="true";;
-        gitlab)
-            # GitLab takes ages to start...
+        gitlab|canvas)
+            # GitLab & Canvas take ages to start...
             export MAX_COUNT=70 # possibly overkill
             ;;
     esac
