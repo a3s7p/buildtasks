@@ -153,8 +153,8 @@ done
 # don't try screens for tkldev & extend MAX_COUNT for gitlab & canvas
 if [[ -z "$no_screens" ]]; then
     case $appname in
-        tkldev)
-            info "TKLDev build - disabling screenshots as no web UI"
+        tkldev|core)
+            info "$appname build - disabling screenshots as no web UI"
             no_screens="true";;
         gitlab|canvas)
             # GitLab & Canvas take ages to start...
