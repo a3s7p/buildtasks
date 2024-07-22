@@ -26,7 +26,7 @@ debconf-set-selections << EOF
 $OLD_KERNEL $OLD_KERNEL/prerm/removing-running-kernel-$OLD_KERNEL_VER boolean false
 EOF
 export DEBIAN_FRONTEND=noninteractive
-apt-get -y purge $OLD_META_KERNEL $OLD_KERNEL
+apt-get -y purge "$OLD_META_KERNEL" "$OLD_KERNEL"
 
 # stop auto-secupdates complaining
 mkdir -p /lib/modules
@@ -70,3 +70,14 @@ fi
 # note that it breaks ldap/postfix integration - see issue #855
 # (applyed to openldap too as of v16.1)
 rm -rf /var/spool/postfix/dev/{u,}random
+
+if which redis-server >/dev/null; then
+    dir=/etc/systemd/system/redis-server.service.d
+    mkdir -p $dir
+    cat > $dir/container-override.conf <<EOF
+# Hardening options in LXC container cause Redis to fail to start
+[Service]
+NoNewPrivileges=false
+PrivateUsers=false
+EOF
+fi
