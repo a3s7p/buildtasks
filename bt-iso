@@ -335,7 +335,7 @@ if [[ -z "$no_screens" ]]; then
     export TKL_SCREENSHOT_PATH=$BT_PRODUCTS/$appname/build/screens
     mkdir -p "$TKL_SCREENSHOT_PATH"
     SELENIUM_CONT=docker.io/selenium/standalone-chrome
-    SELENIUM_TAG=4.7.2-20221219
+    SELENIUM_TAG=4.18.1-20240224
 
     info "Starting selenium container"
     unset add_hosts
@@ -347,7 +347,7 @@ if [[ -z "$no_screens" ]]; then
     # check if selenium container already exists
     existing_instance=$(podman ps -a --format "{{.ID}}:{{.Image}}" \
                 | grep "$SELENIUM_CONT:$SELENIUM_TAG" || [[ $? == 1 ]])
-    if [[ $(wc -l <<<"existing_instance") -gt 1 ]]; then
+    if [[ $(wc -l <<<"$existing_instance") -gt 1 ]]; then
         fatal "More than one selenium instance found"
     fi
     existing_id=$(sed -En "s|(^[a-f0-9]+):.*|\1|p" <<<"$existing_instance")
