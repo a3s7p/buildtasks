@@ -1,16 +1,11 @@
 #!/bin/bash -ex
 
-list_file=/var/lib/apt/lists/archive.turnkeylinux.org_debian_dists_bullseye_Release
-[[ -f "$list_file" ]] || apt-get update
+export DEBIAN_FRONTEND=noninteractive
 
-DEBIAN_FRONTEND=noninteractive apt-get upgrade \
+list_file="/var/lib/apt/lists/archive.turnkeylinux.org_debian_dists_*"
+[[ -n "$list_file" ]] || apt-get update
+
+apt-get upgrade \
     --autoremove --with-new-pkgs -y \
     -o DPkg::Options::=--force-confdef \
     -o DPkg::Options::=--force-confold
-
-INSTALLED=$(dpkg-query --showformat='${Package} ${Status}\n' -W 'linux-image-[0-9].*' | grep "ok installed" | sed 's/ .*//')
-CURRENT=$(ls -l /vmlinuz | awk '{print $11}' | sed 's|boot/vmlinuz-|linux-image-|')
-for KERNEL in $INSTALLED; do
-    [ "$KERNEL" == "$CURRENT" ] && continue
-    DEBIAN_FRONTEND=noninteractive apt-get -y purge $KERNEL
-done

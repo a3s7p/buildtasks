@@ -1,0 +1,17 @@
+#!/bin/bash -ex
+
+export DEBIAN_FRONTEND=noninteractive
+
+old_kernels=()
+installed_kernels=$(dpkg -l | grep '^ii *linux-image-[0-9]' | awk '{print $2}')
+current_vmlinuz=$(find / -maxdepth 1 -name 'vmlinuz' -exec readlink {} \;)
+current_kernel="linux-image-${current_vmlinuz#boot/vmlinuz-}"
+for kernel in $installed_kernels; do
+    if [[ "$kernel" == "$current_kernel" ]]; then
+        continue
+    else
+        old_kernels+=("$kernel")
+    fi
+done
+
+apt-get -y purge "${old_kernels[@]}" || true
