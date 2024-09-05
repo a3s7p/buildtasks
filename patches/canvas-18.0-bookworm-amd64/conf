@@ -1,0 +1,12 @@
+#!/bin/bash -e
+
+passenger_conf=/etc/apache2/mods-available/passenger.conf
+sed -i "/^PassengerStartTimeout/ s| .*| 360|" "$passenger_conf"
+echo "PassengerInstanceRegistryDir /run/passenger-instreg" >> "$passenger_conf"
+
+conf_dir=/var/www/canvas/config
+sed -i "/worker_max_memory_usage:/ s|:.*|:1073741824|" "$conf_dir/security.yml"
+sed -i "/lti_iss:/ S|:.*|: \"https://www.example.com\"" "$conf_dir/security.yml"
+
+py3clean /
+yarn cache clean

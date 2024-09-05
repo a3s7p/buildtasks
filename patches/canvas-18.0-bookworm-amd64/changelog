@@ -1,0 +1,416 @@
+turnkey-canvas-18.1 (1) turnkey; urgency=low
+
+  * Install latest Canvas LTS stable (prod branch), Canvas RCE API and required
+    dependencies. Canvas installed from upstream git repo.
+
+  * Update Ruby (3.1.6).
+
+  * Update bundler to 2.5.10 - as per "Production Start" doc.
+
+  * Disable Apache mod_evasie for Canvas - part of #1965.
+
+  * Run switchman_inst_jobs:install:migrations - closes #1965.
+
+  * Update GEM_PATH in Apache conf - didn't seem to be causing issues, but
+    better for it to be correct path.
+
+  * Apply fix so passenger-status works - useful for debugging.
+
+  * Configuration console (confconsole) - v2.1.6:
+    - Let's Encrypt/Dehydrated - bugfix cron failure - closes #1962.
+    - General dehydrated-wrapper code cleanup - now passes shellcheck.
+
+  * Web management console (webmin):
+    - Include webmin-logviewer module by default - closes #1866.
+    - Replace webmin-shell with webmin-xterm module by default - closes #1904.
+
+  * Reduce log noise by creating ntpsec log dir - closes #1952.
+
+ -- Jeremy Davis <jeremy@turnkeylinux.org>  Sat, 06 Jul 2024 11:31:36 +0000
+
+turnkey-canvas-18.0 (1) turnkey; urgency=low
+
+  * Update Ruby (3.1.4).
+    [Zhenya Hvorostian <zhenya@turnkeylinux.org>]
+
+  * Update yarn (1.22.19).
+    [Zhenya Hvorostian <zhenya@turnkeylinux.org>]
+
+  * Install latest Canvas LTS stable (prod branch), Canvas RCE API and required dependencies. Canvas
+    installed from upstream git repo.
+    [Zhenya Hvorostian <zhenya@turnkeylinux.org>]
+
+  * Ensure hashfile includes URL to public key - closes #1864.
+
+  * Include webmin-logviewer module by default - closes #1866.
+
+  * Upgraded base distribution to Debian 12.x/Bookworm.
+
+  * Configuration console (confconsole):
+    - Support for DNS-01 Let's Encrypt challenges.
+      [ Oleh Dmytrychenko <dmytrychenko.oleh@gmail.com> github: @NitrogenUA ]
+    - Support for getting Let's Encrypt cert via IPv6 - closes #1785.
+    - Refactor network interface code to ensure that it works as expected and
+      supports more possible network config (e.g. hotplug interfaces & wifi).
+    - Show error message rather than stacktrace when window resized to
+      incompatable resolution - closes  #1609.
+      [ Stefan Davis <stefan@turnkeylinux.org> ]
+    - Bugfix exception when quitting configuration of mail relay.
+      [ Oleh Dmytrychenko <dmytrychenko.oleh@gmail.com> github: @NitrogenUA ]
+    - Improve code quality: implement typing, fstrings and make (mostly) PEP8
+      compliant.
+      [Stefan Davis <stefan@turnkeylinux.org> & Jeremy Davis
+
+  * Firstboot Initialization (inithooks):
+    - Refactor start up (now hooks into getty process, rather than having it's
+      own service).
+      [ Stefan Davis <stefan@turnkeylinux.org> ]
+    - Refactor firstboot.d/01ipconfig (and 09hostname) to ensure that hostname
+      is included in dhcp info when set via inithooks.
+    - Package turnkey-make-ssl-cert script (from common overlay - now packaged
+      as turnkey-ssl). Refactor relevant scripts to leverage turnkey-ssl.
+    - Refactor run script - use bashisms and general tidying.
+    - Show blacklisted password characters more nicely.
+    - Misc packaging changes/improvements.
+    - Support returning output from MySQL - i.e. support 'SELECT'. (Only
+      applies to apps that include MySQL/MariaDB).
+
+  * Web management console (webmin):
+    - Upgraded webmin to v2.105.
+    - Removed stunnel reverse proxy (Webmin hosted directly now).
+    - Ensure that Webmin uses HTTPS with default cert
+      (/etc/ssl/private/cert.pem).
+    - Disabled Webmin Let's Encrypt (for now).
+
+  * Web shell (shellinabox):
+    - Completely removed in v18.0 (Webmin now has a proper interactive shell).
+
+  * Backup (tklbam):
+    - Ported dependencies to Debian Bookworm; otherwise unchanged.
+
+  * Security hardening & improvements:
+    - Generate and use new TurnKey Bookworm keys.
+    - Automate (and require) default pinning for packages from Debian
+      backports. Also support non-free backports.
+
+  * IPv6 support:
+    - Adminer (only on LAMP based apps) listen on IPv6.
+    - Nginx/NodeJS (NodeJS based apps only) listen on IPv6.
+
+  * Misc bugfixes & feature implementations:
+    - Remove rsyslog package (systemd journal now all that's needed).
+    - Include zstd compression support.
+    - Enable new non-free-firmware apt repo by default.
+    - Improve turnkey-artisan so that it works reliably in cron jobs (only
+      Laravel based LAMP apps).
+
+  * Use PostgreSQL v15 (from debian repos).
+    [ Stefan Davis <stefan@turnkeylinux.org> ]
+
+  * Upstream/Debian Adminer update - closes #1758.
+    [ Stefan Davis <stefan@turnkeylinux.org> ]
+
+  * Set mod_evasive log location - makes debugging easier.
+    [ Jeremy Davis <jeremy@turnkeylinux.org> ]
+
+  * Include and enable mod_evasive and mod_security2 by default in Apache.
+    [ Stefan Davis <Stefan@turnkeylinux.org> ]
+
+ -- Jeremy Davis <jeremy@turnkeylinux.org>  Mon, 05 Feb 2024 07:00:32 +0000
+
+turnkey-canvas-17.1 (1) turnkey; urgency=low
+
+  * Updated all Debian packages to latest.
+    [ autopatched by buildtasks ]
+
+  * Patched bugfix release. Closes #1734.
+    [ autopatched by buildtasks ]
+
+ -- Jeremy Davis <jeremy@turnkeylinux.org>  Tue, 21 Feb 2023 02:54:06 +0000
+
+turnkey-canvas-17.0 (1) turnkey; urgency=low
+
+  * Install latest Canvas LTS stable (prod branch) and required dependencies. Canvas
+    installed from upstream git repo.
+    [ Zhenya Hvorostian <zhenya@turnkeylinux.org> &
+      Anton Pyrogovskyi <anton@turnkeylinux.org> ]
+
+  * Use LTS Node version already installed by common (currently 18.12.1).
+
+  * Install yarn version recommended by upstream (currently 1.22.11).
+
+  * Note: Please refer to turnkey-core's 17.0 changelog for changes common to
+    all appliances. Here we only describe changes specific to this appliance.
+
+ -- Anton Pyrogovskyi <anton@turnkeylinux.org>  Fri, 16 Dec 2022 19:36:39 +0100
+
+turnkey-canvas-16.2 (1) turnkey; urgency=low
+
+  * Install latest Canvas LTS stable and required dependencies. Canvas
+    installed from upstream git repo.
+
+  * Note: Please refer to turnkey-core's 16.1 changelog for changes common to
+    all appliances. Here we only describe changes specific to this appliance.
+
+ -- Jeremy Davis <jeremy@turnkeylinux.org>  Thu, 27 May 2021 13:20:31 +1000
+
+turnkey-canvas-16.1 (1) turnkey; urgency=low
+
+  * Install latest Canvas LTS stable from upstream git repo.
+    [ Jeremy Davis <jeremy@turnkeylinux.org> &
+      Zhenya Hvorostian <zhenya@turnkeylinux.org> ]
+
+  * Fix/improve domain setting inithooks (untracked).
+    [ Zhenya Hvorostian <zhenya@turnkeylinux.org> &
+      Jeremy Davis <jeremy@turnkeylinux.org> ]
+
+  * Fix canvas_init script (untracked issue with false regex).
+    [ Zhenya Hvorostian <zhenya@turnkeylinux.org> ]
+
+  * Install yarn via common conf/overlay (remove redundant bits from this
+    repo).
+    [ Jeremy Davis <jeremy@turnkeylinux.org> &
+      Zhenya Hvorostian <zhenya@turnkeylinux.org> ]
+
+  * Improved/more explicit mail settings.
+    [ Zhenya Hvorostian <zhenya@turnkeylinux.org> ]
+
+  * Make cache_store.yml permissions stricter.
+    [ Zhenya Hvorostian <zhenya@turnkeylinux.org> ]
+
+  * Improve/finalize RCE API integration and fix 500 errors. (Note previous
+    releases had RCE API integration, but this finalises it).  Closes #1319 &
+    #1362.
+    [ Zhenya Hvorostian <zhenya@turnkeylinux.org> ]
+
+  * Remove redundant "stand-alone" Passenger service (and service calls). This
+    was starting Canvas via Passenger under Nginx, rather than Apache under
+    some circusmtance. Closes #1495.
+
+ -- Jeremy Davis <jeremy@turnkeylinux.org>  Thu, 06 Aug 2020 12:11:52 +1000
+
+turnkey-canvas-16.0 (1) turnkey; urgency=low
+
+  * Explcitly disable TLS<1.2 (i.e. SSLv3, TLSv1, TLSv1.1). (v15.x
+    TurnKey releases supported TLS 1.2, but could fallback as low as TLSv1).
+
+  * Update SSL/TLS cyphers to provide "Intermediate" browser/client support
+    (suitable for "General-purpose servers with a variety of clients,
+    recommended for almost all systems"). As provided by Mozilla via
+    https://ssl-config.mozilla.org/.
+
+  * Install latest Canvas LTS stable from upstream git repo.
+
+  * Repaired Canvas RCE API service for running with a domain.
+
+  * Update included NodeJS to 10.x (10.20.1).
+      
+  * Note: Please refer to turnkey-core's changelog for changes common to all
+    appliances. Here we only describe changes specific to this appliance.
+
+ -- Zhenya Hvorostian <zhenya@turnkeylinux.org>  Wed, 13 May 2020 20:12:15 +0300
+
+turnkey-canvas-15.3 (1) turnkey; urgency=low
+
+  * Install latest Canvas LTS stable from upstream git repo.
+
+  * Include Canvas RCE API service run with Passenger - closes #1319.
+
+  * Update included NodeJS to 10.x (10.15.3).
+  
+  * Note: Please refer to turnkey-core's changelog for changes common to all
+    appliances. Here we only describe changes specific to this appliance.
+
+ -- Zhenya Hvorostian <zhenya@turnkeylinux.org>  Thu, 06 June 2019 18:38:42 +0300
+
+turnkey-canvas-15.2 (1) turnkey; urgency=low
+
+  * Install latest Canvas LTS stable from upstream git repo.
+
+  * Include updated yarn gpg key.
+
+  * Include Canvas logrotate.d script - closes #1279.
+    [ Zhenya Hvorostian ]
+  
+  * Note: Please refer to turnkey-core's changelog for changes common to all
+    appliances. Here we only describe changes specific to this appliance.
+
+ -- Jeremy Davis <jeremy@turnkeylinux.org>  Tue, 05 Feb 2019 17:22:41 +1100
+
+turnkey-canvas-15.1 (1) turnkey; urgency=low
+
+  * Install latest Canvas LTS stable from upstream git repo.
+  
+  * Update yarn version to 1.10.1.
+
+  * Secure yarn apt repo.
+  
+  * Note: Please refer to turnkey-core's changelog for changes common to all
+    appliances. Here we only describe changes specific to this appliance.
+  
+ -- Zhenya Hvorostian <zhenya@turnkeylinux.org>  Fri, 23 Nov 2018 11:48:21 +0300
+
+turnkey-canvas-15.0 (1) turnkey; urgency=low
+
+  * Install latest Canvas LTS stable from upstream git repo.
+  
+  * Update yarn version to latest.
+  
+  * Change Node.js version to 8.12.0.
+
+  * Note: Please refer to turnkey-core's changelog for changes common to all
+    appliances. Here we only describe changes specific to this appliance.
+  
+ -- Zhenya Hvorostian <zhenya@turnkeylinux.org> Sun, 24 Sep 2018 21:33:10 +0300
+
+turnkey-canvas-14.2 (1) turnkey; urgency=low
+
+  * Latest version of Canvas installed.
+
+  * Now includes LTS Node.js (v6.11.1).
+
+  * Note: Please refer to turnkey-core's changelog for changes common to all
+    appliances. Here we only describe changes specific to this appliance.
+
+ -- Anton Pyrogovskyi <anton@turnkeylinux.org>  Mon, 31 Jul 2017 10:07:26 +0200
+
+turnkey-canvas-14.1 (2) turnkey; urgency=low
+
+  * Canvas:
+
+    - Responsiveness when running on AWS is improved [#583].
+    - Now deployed on Passenger Standalone instead of Apache.
+
+  * Note: Please refer to turnkey-core's changelog for changes common to all
+    appliances. Here we only describe changes specific to this appliance.
+
+ -- Anton Pyrogovskyi <anton@turnkeylinux.org>  Mon, 02 May 2016 18:44:51 +0200
+
+turnkey-canvas-14.1 (1) turnkey; urgency=low
+
+  * Canvas:
+
+    - Bugs related to DelayedJobs (fixes #516).
+    - Improved regen-rails-secrets inithook [#591].
+
+  * Note: Please refer to turnkey-core's changelog for changes common to all
+    appliances. Here we only describe changes specific to this appliance.
+
+ -- Stefan Davis <nafets.sivad@gmail.com>  Mon, 11 Jan 2016 00:40:20 +0000
+
+turnkey-canvas-14.0 (1) turnkey; urgency=low
+
+  * Canvas:
+
+    - Changed database adapter to postgresql (support for MySQL dropped).
+
+  * Upstream source component versions:
+
+    canvas-lms          stable (git branch)
+
+  * Hardened default SSL settings
+
+  * Note: Please refer to turnkey-core's changelog for changes common to all
+    appliances. Here we only describe changes specific to this appliance.
+
+ -- Anton Pyrogovskyi <anton@turnkeylinux.org>  Sun, 6 Sep 2015 13:15:27 +0300
+
+turnkey-canvas-13.0 (1) turnkey; urgency=low
+
+  * Canvas:
+
+    - Changed database adapter to mysql2 (recommended for ruby 1.9)
+    - Replaced ruby-enterprise with stock ruby from Debian [#102].
+    - Redis installed from Debian archive (backport no longer needed).
+
+  * Build related changes:
+
+    - Bugfix: don't delete /usr/local/src/node*
+    - Install activesupport 2.3.18 and rerun bundle install on failure [#109].
+    - Comment out problematic migration [#110].
+    - Bugfixes for package transitions [#58, #59].
+
+  * Upstream source component versions:
+
+    canvas-lms          stable (git branch)
+
+  * Note: Please refer to turnkey-core's changelog for changes common to all
+    appliances. Here we only describe changes specific to this appliance.
+
+ -- Alon Swartz <alon@turnkeylinux.org>  Thu, 10 Oct 2013 17:05:35 +0300
+
+turnkey-canvas-12.1 (1) turnkey; urgency=low
+
+  * Canvas:
+
+    - Upgraded to latest version of Canvas - cloned from upstream git repo 
+      as recommended providing an easy upgrade path.
+    - Fixed automated jobs daemon configuration and enabled (bugfix).
+    - Set outgoing mail defaults to tls, disable for local postfix (bugfix).
+    - Installing and pinning latest version of redis-server from backports.
+    - Upgraded ruby version (required in latest version).
+
+  * NodeJS related:
+
+    - Latest version of node will be installed at build time, with a source
+      symlink created at /usr/local/src/node.
+    - Node binaries added to path via symlinking in /usr/local/bin.
+    - Latest NPM module versions installed at build time.
+
+  * Upstream source component versions:
+
+    canvas-lms          stable (git branch)
+    rubyenterprise      1.8.7-2012.02_i386_ubuntu10.04
+                        1.8.7-2012.02_amd64_debian6
+    ruby                1.9.3-p327
+
+  * Note: Please refer to turnkey-core's changelog for changes common to all
+    appliances. Here we only describe changes specific to this appliance.
+
+ -- Alon Swartz <alon@turnkeylinux.org>  Sun, 07 Apr 2013 08:00:00 +0200
+
+turnkey-canvas-12.0 (1) turnkey; urgency=low
+
+  * Initial public release of TurnKey Canvas.
+
+  * Canvas related:
+
+    - Canvas LMS and nodejs installed from latest upstream version. Redis
+      server installed from Squeeze backports as required.
+    - Set Canvas admin password and email on firstboot (convenience, security).
+    - Set Canvas domain to serve on first boot (convenience).
+    - Pre-configured to use MySQL (recommended for production).
+    - Includes Canvas automated jobs daemon initscript (disabled by default).
+    - Includes Apache pre-configured with passenger support, with SSL support
+      out of the box (performance, security).
+
+  * Regenerates all secrets during installation / firstboot (security).
+
+  * MySQL related:
+
+    - Set MySQL root password on firstboot (convenience, security).
+    - Force MySQL to use Unicode/UTF8.
+
+  * Includes postfix MTA (bound to localhost) for sending of email (e.g.
+    password recovery). Also includes webmin postfix module for convenience.
+
+  * Major component versions
+
+    canvas-lms          revision db0034c (upstream archive)
+
+    rails               2.3.14
+    ruby-enterprise     1.8.7-2012.02
+    ruby                4.5
+    ruby-dev            4.5
+
+    apache2             2.2.16-6+squeeze7
+    mysql-server        5.1.63-0+squeeze1
+    redis-server        2.4.15-1~bpo60+2 (backported package)
+    build-essential     11.5
+    imagemagick         8:6.6.0.4-3+squeeze3
+
+  * Note: Please refer to turnkey-core's changelog for changes common to all
+    appliances. Here we only describe changes specific to this appliance.
+
+ -- Alon Swartz <alon@turnkeylinux.org>  Wed, 01 Aug 2012 08:00:00 +0200
+
