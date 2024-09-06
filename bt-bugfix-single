@@ -1,8 +1,8 @@
 #!/bin/bash -e
 # Copyright (c) 2024 TurnKey GNU/Linux - https://www.turnkeylinux.org
-# 
+#
 # This file is part of buildtasks.
-# 
+#
 # Buildtasks is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Affero General Public License as published by the
 # Free Software Foundation; either version 3 of the License, or (at your
@@ -101,7 +101,7 @@ _start() {
     _clean_iso "$new_isofile"
     if [[ -z "$local_rootfs" ]] && [[ -z "$local_iso" ]]; then
         _clean_dirs
-        _clean_isos "$isofile"
+        _clean_iso "$isofile"
     elif [[ -n "$local_rootfs" ]]; then
         msg="--rootfs set"
         if [[ ! -d "${O:?}/$rootfs" ]] \
@@ -186,7 +186,6 @@ rootfs=$name.rootfs
 cdroot=$name.cdroot
 old_sec_pkg=turnkey-${appname}-${appversion}
 new_sec_pkg=turnkey-${appname}-${new_appversion}
-new_changelog=$new_name.changelog
 ver_patch=$BT/patches/${appname}-${BT_VERSION}
 
 [[ -n "$BT_ISOS" ]] || fatal "BT_ISO not set"
@@ -227,7 +226,7 @@ mount --bind --make-rslave /sys "$rootfs/sys"
 mount --bind --make-rslave /dev "$rootfs/dev"
 mount --bind --make-rslave /run "$rootfs/run"
 
-TMP_DIR=$(mktemp -d /tmp/$APP_NAME.XXXXX)
+TMP_DIR=$(mktemp -d /tmp/"$APP_NAME".XXXXX)
 
 info "Updating appliance rootfs & applying patch"
 echo "$new_name" > "$rootfs/etc/turnkey_version"
@@ -238,7 +237,7 @@ cat > "$release_patch/conf" <<EOF
 #!/bin/bash -e
 export DEBIAN_FRONTEND=noninteractive
 apt-get purge -y $old_sec_pkg 2>/dev/null \
-    || warning "package: $old_sec_pkg not found"
+    || echo "WARNING package: $old_sec_pkg not found" >&2
 EOF
 chmod +x "$release_patch/conf"
 tklpatch-apply "$rootfs" "$release_patch"
