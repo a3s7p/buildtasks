@@ -1,5 +1,7 @@
 #!/bin/bash -e
 
+a2dismod evasive
+
 passenger_conf=/etc/apache2/mods-available/passenger.conf
 sed -i "/^PassengerStartTimeout/ s| .*| 360|" "$passenger_conf"
 echo "PassengerInstanceRegistryDir /run/passenger-instreg" >> "$passenger_conf"
