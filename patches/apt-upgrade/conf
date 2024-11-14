@@ -1,0 +1,11 @@
+#!/bin/bash -ex
+
+export DEBIAN_FRONTEND=noninteractive
+
+list_file="/var/lib/apt/lists/archive.turnkeylinux.org_debian_dists_*"
+[[ -n "$list_file" ]] || apt-get update
+
+apt-get upgrade \
+    --autoremove --with-new-pkgs -y \
+    -o DPkg::Options::=--force-confdef \
+    -o DPkg::Options::=--force-confold

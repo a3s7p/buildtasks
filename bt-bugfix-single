@@ -1,0 +1,275 @@
+#!/bin/bash -e
+# Copyright (c) 2024 TurnKey GNU/Linux - https://www.turnkeylinux.org
+#
+# This file is part of buildtasks.
+#
+# Buildtasks is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Affero General Public License as published by the
+# Free Software Foundation; either version 3 of the License, or (at your
+# option) any later version.
+
+export DEBIAN_STABLE=bookworm
+this_arch=$(dpkg --print-architecture)
+export OS_ARCH="$this_arch"
+APP_NAME=$(basename "$0")
+
+fatal() { echo "FATAL [$APP_NAME]: $*" 1>&2; exit 1; }
+warning() { echo "WARNING [$APP_NAME]: $*" 1>&2; }
+info() { echo "INFO [$APP_NAME]: $*"; }
+
+usage() {
+cat<<EOF
+Syntax: $APP_NAME [ --options ] full-appname
+Patch full-appname iso with appname-version patch, increment
+version and repackage as new version ISO.
+Updated changelog with incremented version MUST exist in patch root directory.
+
+Arguments::
+
+    full-appname        - e.g., core-17.0-bullseye-amd64
+
+Options::
+
+    --publish           - publish new iso, release files and tklbam profile
+                          - implies '--secupdates'
+    --secupdates        - run secupdates
+    --updates           - install all available updates
+                          - implies '--secupdates'
+    --local-iso         - validate and patch local iso
+                          - iso must exist in BT_ISOS
+                          - hash will be downloaded if it doesn't exist
+                          - conflicts with '--publish'
+    --rootfs            - reuse existing rootfs
+                          - rootfs & cdroot must exist in BT_ISOS
+                          - no check for existing iso/hash
+                          - conflicts with '--publish'
+
+Environment::
+
+    BT_DEBUG            - turn on debugging
+
+EOF
+exit 1
+}
+
+_validate_version() {
+    local version="$1"
+    local stable_version="^[1-9][0-9]\.[0-9][0-9]?"
+    if [[ $version =~ $stable_version$ ]]; then
+        return
+    elif [[ $version =~ $stable_version(alpha|beta|rc)[1-9]$ ]]; then
+        warning "Valid pre-release version: $version"
+    else
+        fatal "Invalid version: $version"
+    fi
+}
+
+_validate_codename() {
+    local codename="$1"
+    [[ "$codename" == "$DEBIAN_STABLE" ]] \
+        || fatal "Invalid codename: $codename (expected $DEBIAN_STABLE)"
+}
+
+_umount() {
+    local root="$O/$rootfs"
+    if [[ -d "$root" ]]; then
+        fuser -k "$root" || true
+        for dir in run dev sys proc; do
+            umount -lv "$root/$dir" 2>/dev/null || true
+        done
+    fi
+    if mount | grep -q "$rootfs"; then
+        fatal "$rootfs not unmounted."
+    fi
+}
+
+
+_clean_dirs() {
+    _umount
+    rm -rf "${O:?}/${rootfs:?}"
+    rm -rf "${O:?}/${cdroot:?}"
+}
+
+_clean_iso() {
+    local iso=$1
+    rm -rf "${O:?}/${iso:?}"
+    rm -rf "${O:?}/${iso:?}.hash"
+}
+
+_start() {
+    info "cleaning relevant assets before build"
+    _clean_iso "$new_isofile"
+    if [[ -z "$local_rootfs" ]] && [[ -z "$local_iso" ]]; then
+        _clean_dirs
+        _clean_iso "$isofile"
+    elif [[ -n "$local_rootfs" ]]; then
+        msg="--rootfs set"
+        if [[ ! -d "${O:?}/$rootfs" ]] \
+                || [[ ! -d "${O:?}/$cdroot" ]]; then
+            fatal "$msg and rootfs &/or cdroot do not exist in $BT_ISOS"
+        else
+            _umount
+            warning "$msg - using existing rootfs & cdroot dirs"
+        fi
+    elif [[ -n "$local_iso" ]]; then
+        msg="--local-iso set"
+        if [[ ! -f "${O:?}/$isofile" ]] || [[ ! -f "${O:?}/$isofile.hash" ]]; then
+            fatal "$msg & iso file does not exist in $BT_ISOS"
+        else
+            warning "$msg - using existing iso & hash file"
+        fi
+    fi
+}
+
+_finish() {
+    _umount
+    if [[ -z "$BT_DEBUG" ]]; then
+        info "cleaning up build assets"
+        _clean_dirs
+        rm -rf "$TMP_DIR"
+    else
+        warning "BT_DEBUG set - rootfs, cdroot & $TMP_DIR not removed"
+    fi
+}
+
+unset appver publish sec_updates all_updates local_iso local_rootfs
+while [[ "$1" != "" ]]; do
+    case $1 in
+        --help|-h)      usage;;
+        --publish)      publish="yes"
+                        sec_updates="yes";;
+        --secupdates)   sec_updates="yes";;
+        --updates)      all_updates="yes"
+                        sec_updates="yes";;
+        --local-iso)    local_iso="yes";;
+        --rootfs)       local_rootfs="yes";;
+        *)              if [[ -n "$appver" ]]; then
+                            usage
+                        else
+                            appver=$1
+                        fi;;
+    esac
+    shift
+done
+
+[[ -z "$BT_DEBUG" ]] || set -x
+[[ -n "$appver" ]] || usage
+
+info "Parsing and validating args, opts and required build variables"
+bt_bugfix_path=$(readlink -f "$0")
+bt_dir=$(dirname "$bt_bugfix_path")
+export BT="$bt_dir"
+export BT_CONFIG=$BT/config
+# shellcheck source=/dev/null
+source "$BT_CONFIG/common.cfg"
+
+parsed_appname_version=$("$BT/bin/parse-appname-version" "$appver")
+read -r appname appversion codename arch <<< "$parsed_appname_version"
+
+split_version="$(sed -En "s|^([0-9]+)\.([0-9]+)|\1 \2|p" <<< "$appversion")"
+read -r major_v minor_v  <<< "$split_version"
+new_appversion="${major_v}.$((minor_v + 1))"
+
+_validate_version "$appversion"
+_validate_version "$new_appversion"
+_validate_codename "$codename"
+[[ "$arch" == "$OS_ARCH" ]] || fatal "Architecture mismatch: $arch != $OS_ARCH"
+
+export BT_VERSION=${appversion}-${codename}-${arch}
+export NEW_BT_VERSION="${new_appversion}-${codename}-${arch}"
+
+name=turnkey-${appname}-${BT_VERSION}
+new_name=turnkey-${appname}-${NEW_BT_VERSION}
+isofile=$name.iso
+new_isofile=$new_name.iso
+rootfs=$name.rootfs
+cdroot=$name.cdroot
+old_sec_pkg=turnkey-${appname}-${appversion}
+new_sec_pkg=turnkey-${appname}-${new_appversion}
+ver_patch=$BT/patches/${appname}-${BT_VERSION}
+
+[[ -n "$BT_ISOS" ]] || fatal "BT_ISO not set"
+if [[ "$publish" == "yes" ]]; then
+    [[ -n "$BT_PUBLISH_IMGS" ]] || fatal "BT_PUBLISH_IMGS not set"
+    [[ -n "$BT_PUBLISH_META" ]] || fatal "BT_PUBLISH_META not set"
+    [[ -n "$BT_PUBLISH_PROFILES" ]] || fatal "BT_PUBLISH_PROFILES not set"
+    [[ -n "$local_roofs" ]] || fatal "--rootfs conflicts with --publish"
+    [[ -n "$local_iso" ]] || fatal "--local-iso conflicts with --publish"
+else
+    warning "--publish was not set"
+fi
+
+#trap _cleanup INT TERM EXIT
+
+if [[ ! -d "$ver_patch" ]]; then
+    fatal "Patch not found: $ver_patch"
+elif [[ ! -f "$ver_patch/changelog" ]]; then
+    fatal "$ver_patch/changelog not found"
+elif ! grep -q "^$new_sec_pkg " <(head -1 "$ver_patch/changelog"); then
+    fatal "Patch changelog has incorrect version (should be $new_sec_pkg)"
+fi
+
+O=$BT_ISOS
+mkdir -p "$O"
+_start
+cd "$O"
+
+if [[ -z "$local_rootfs" ]]; then
+    "$BT/bin/iso-download" "$O" "$BT_VERSION" "$appname"
+    "$BT/bin/iso-verify" "$O" "$BT_VERSION" "$appname"
+    info "Unpacking iso and setting up as chroot"
+    tklpatch-extract-iso "$isofile"
+fi
+
+mount --bind --make-rslave /proc "$rootfs/proc"
+mount --bind --make-rslave /sys "$rootfs/sys"
+mount --bind --make-rslave /dev "$rootfs/dev"
+mount --bind --make-rslave /run "$rootfs/run"
+
+TMP_DIR=$(mktemp -d /tmp/"$APP_NAME".XXXXX)
+
+info "Updating appliance rootfs & applying patch"
+echo "$new_name" > "$rootfs/etc/turnkey_version"
+release_patch="$TMP_DIR/update-patch"
+mkdir -p "$release_patch/debs"
+"$BT/bin/generate-release-deb" "$ver_patch/changelog" "$release_patch/debs/"
+cat > "$release_patch/conf" <<EOF
+#!/bin/bash -e
+export DEBIAN_FRONTEND=noninteractive
+apt-get purge -y $old_sec_pkg 2>/dev/null \
+    || echo "WARNING package: $old_sec_pkg not found" >&2
+EOF
+chmod +x "$release_patch/conf"
+tklpatch-apply "$rootfs" "$release_patch"
+rm -rf "$release_patch"
+
+if [[ -n "$all_updates" ]]; then
+    tklpatch-apply "$rootfs" "$BT/patches/apt-upgrade"
+elif [[ -n "$sec_updates" ]]; then
+    fab-chroot "$rootfs" turnkey-install-security-updates
+fi
+
+info "Building new ISO."
+tklpatch-apply "$rootfs" "$BT/patches/clean-old-kernels"
+"$BT/bin/rootfs-cleanup" "$rootfs"
+"$BT/bin/aptconf-tag" "$rootfs" iso
+rm -rf "$rootfs/tmp/*"
+_umount
+tklpatch-prepare-cdroot "$rootfs" "$cdroot"
+TKLPATCH_ISOLABEL=${appname} tklpatch-geniso "$cdroot" "$new_isofile"
+
+if [[ "$publish" == "yes" ]]; then
+    info "Preparing release files & publishing."
+    "$BT/bin/generate-signature" "$O/$new_isofile"
+    "$BT/bin/generate-manifest" "$rootfs" > "$O/$new_name.manifest"
+    "$BT/bin/generate-buildenv" iso "$appname" > "$O/$new_name.iso.buildenv"
+    if [[ -e "$BT_PROFILES/$appname" ]]; then
+        mkdir -p "$O/$new_name.tklbam"
+        export PROFILES_CONF=$BT_PROFILES
+        "$BT/bin/generate-tklbam-profile" "$O/$new_name.iso" "$O/$new_name.tklbam"
+    else
+        fatal "tklbam profile not found: $BT_PROFILES/$appname"
+    fi
+    "$BT/bin/iso-publish" "$BT_ISOS/$new_name.iso"
+fi
+_finish

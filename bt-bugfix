@@ -8,13 +8,13 @@
 # Free Software Foundation; either version 3 of the License, or (at your
 # option) any later version.
 
-fatal() { echo "FATAL [$(basename $0)]: $@" 1>&2; exit 1; }
-warning() { echo "WARNING [$(basename $0)]: $@"; }
-info() { echo "INFO [$(basename $0)]: $@"; }
+fatal() { echo "FATAL [$(basename "$0")]: $*" 1>&2; exit 1; }
+warning() { echo "WARNING [$(basename "$0")]: $*" 1>&2; }
+info() { echo "INFO [$(basename "$0")]: $*"; }
 
 usage() {
 cat<<EOF
-Syntax: $(basename $0) [ --options ] appname-version
+Syntax: $(basename "$0") [ --options ] appname-version
 Patch appliance appname-version with appname-version patch (if it exists),
 increment version and repackage as ISO, (re)generating tklbam profile.
 
@@ -38,49 +38,57 @@ exit 1
 }
 
 unset appver publish secupdates updates bug_num force
-while [ "$1" != "" ]; do
+while [[ "$1" != "" ]]; do
     case $1 in
-        --help|-h)     usage;;
-        --publish)     publish="yes";;
-        --secupdates)  secupdates="yes";;
-        --updates)     updates="yes";;
-        --bug-number)  shift; bug_num="$1";;
-        --force)       force="yes";;
-        *)             if [ -n "$appver" ]; then usage; else appver=$1; fi ;;
+        --help|-h)      usage;;
+        --publish)      publish="yes";;
+        --secupdates)   secupdates="yes";;
+        --updates)      updates="yes";;
+        --bug-number)   shift; bug_num="$1";;
+        --force)        force="yes";;
+        *)              if [[ -n "$appver" ]]; then
+                            usage
+                        else
+                            appver=$1
+                        fi;;
     esac
     shift
 done
 
-[ -n "$appver" ] || usage
-[ -n "$secupdates" ] || warning "--secupdates was not specified"
+[[ -n "$appver" ]] || usage
+[[ -n "$secupdates" ]] || warning "--secupdates was not specified"
 
-[ -z "$BT_DEBUG" ] || set -x
+[[ -z "$BT_DEBUG" ]] || set -x
 
-export BT=$(dirname $(readlink -f $0))
+bt_bugfix_path=$(readlink -f "$0")
+bt_dir=$(dirname "$bt_bugfix_path")
+export BT="$bt_dir"
 export BT_CONFIG=$BT/config
-. $BT_CONFIG/common.cfg
+# shellcheck source=/dev/null
+source "$BT_CONFIG/common.cfg"
 
-if [ "$publish" == "yes" ]; then
-    [ -n "$BT_PUBLISH_IMGS" ] || fatal "BT_PUBLISH_IMGS not set"
-    [ -n "$BT_PUBLISH_META" ] || fatal "BT_PUBLISH_META not set"
-    [ -n "$BT_PUBLISH_PROFILES" ] || fatal "BT_PUBLISH_PROFILES not set"
+if [[ "$publish" == "yes" ]]; then
+    [[ -n "$BT_PUBLISH_IMGS" ]] || fatal "BT_PUBLISH_IMGS not set"
+    [[ -n "$BT_PUBLISH_META" ]] || fatal "BT_PUBLISH_META not set"
+    [[ -n "$BT_PUBLISH_PROFILES" ]] || fatal "BT_PUBLISH_PROFILES not set"
 else
     warning "--publish was not specified"
 fi
 
 info "Setting up."
+[[ -n "$BT_ISOS" ]] || fatal "BT_ISO not set"
 O=$BT_ISOS
-mkdir -p $O
-parsed_appname_version=$($BT/bin/parse-appname-version $appver)
-read appname appversion codename arch <<< "$parsed_appname_version"
+mkdir -p "$O"
+parsed_appname_version=$("$BT/bin/parse-appname-version" "$appver")
+read -r appname appversion codename arch <<< "$parsed_appname_version"
 export BT_VERSION=${appversion}-${codename}-${arch}
 
 os_arch=$(dpkg --print-architecture)
-[ "$arch" == "$os_arch" ] || fatal "os_arch mismatch: $arch != $os_arch"
+[[ "$arch" == "$os_arch" ]] || fatal "os_arch mismatch: $arch != $os_arch"
 
-major_v=$(echo $appversion | sed -En "s|^([0-9]+)\.[0-9]+|\1|p")
-minor_v=$(echo $appversion | sed -En "s|^[0-9]+\.([0-9]+)|\1|p")
-new_appversion="${major_v}.$(( $minor_v + 1 ))"
+major_v=$(sed -En "s|^([0-9]+)\.[0-9]+|\1|p" <<< "$appversion")
+minor_v=$(sed -En "s|^[0-9]+\.([0-9]+)|\1|p" <<< "$appversion")
+new_appversion="${major_v}.$((minor_v + 1))"
 export NEW_BT_VERSION=${new_appversion}-${codename}-${arch}
 
 name=turnkey-${appname}-${BT_VERSION}
@@ -96,20 +104,20 @@ new_changelog=$new_name.changelog
 
 _umount() {
     info "Unmounting resources from rootfs."
-    umount -l $rootfs/run || true
-    umount -l $rootfs/dev || true
-    umount -l $rootfs/sys || true
-    umount -l $rootfs/proc || true
+    umount -l "$rootfs/run" || true
+    umount -l "$rootfs/dev" || true
+    umount -l "$rootfs/sys" || true
+    umount -l "$rootfs/proc" || true
 }
 
 _cleanup() {
     _umount
     if [[ -z "$BT_DEBUG" ]] || [[ "$force" == "yes" ]]; then
         info "Cleaning up files and directories."
-        rm -rf $O/$new_sec_pkg
-        if ! (mount | grep -q $(basename $rootfs)); then
-            rm -rf $O/$rootfs
-            rm -rf $O/$cdroot
+        rm -rf "${O:?}/${new_sec_pkg:?}"
+        if ! (mount | grep -q "$(basename "$rootfs")"); then
+            rm -rf "${O:?}/${rootfs:?}"
+            rm -rf "${O:?}/${cdroot:?}"
         else
             warning "$rootfs not unmounted."
         fi
@@ -119,13 +127,13 @@ _cleanup() {
 #trap _cleanup INT TERM EXIT
 
 info "Download and verfiy ISO."
-$BT/bin/iso-download $BT_ISOS $BT_VERSION $appname \
-    || $BT/bt-iso $appname
-$BT/bin/iso-verify $BT_ISOS $BT_VERSION $appname
+"$BT/bin/iso-download" "$BT_ISOS" "$BT_VERSION" "$appname" \
+    || "$BT/bt-iso" "$appname"
+"$BT/bin/iso-verify" "$BT_ISOS" "$BT_VERSION" "$appname"
 
-cd $O
+cd "$O"
 [[ "$force" == "yes" ]] || _cleanup
-tklpatch-extract-iso $isofile
+tklpatch-extract-iso "$isofile"
 
 unset patches
 [[ ! -d "$BT/patches/$BT_VERSION" ]] \
@@ -138,7 +146,7 @@ elif [[ "$secupdates" == "yes" ]]; then
     patches="$patches $BT/patches/secupdates"
 fi
 
-patch_test=$(echo $patches | tr -d '[[:space:]]')
+patch_test=$(tr -d '[:space:]' <<< "$patches")
 if [[ -z "$patch_test" ]]; then
     if [[ -z "$BT_DEBUG" ]]; then
         fatal "Exiting. No patches to be applied."
@@ -153,23 +161,23 @@ info "Generating updated updated changelog."
 # update changelog
 msg="Patched bugfix release."
 [[ -z "$bug_num" ]] || msg="$msg Closes #${bug_num}."
-cat > $new_changelog <<EOF
+cat > "$new_changelog" <<EOF
 ${new_sec_pkg} (1) turnkey; urgency=low
 EOF
 if [[ "$patches" == *"/updates"* ]]; then
-    cat >> $new_changelog <<EOF
+    cat >> "$new_changelog" <<EOF
 
   * Updated all Debian packages to latest.
     [ autopatched by buildtasks ]
 EOF
 elif [[ "$patches" == *"/secupdates"* ]]; then
-    cat >> $new_changelog <<EOF
+    cat >> "$new_changelog" <<EOF
 
   * Pre-installed all latest Debian security updates.
     [ autopatched by buildtasks ]
 EOF
 fi
-cat >> $new_changelog <<EOF
+cat >> "$new_changelog" <<EOF
 
   * $msg
     [ autopatched by buildtasks ]
@@ -177,65 +185,65 @@ cat >> $new_changelog <<EOF
  -- Jeremy Davis <jeremy@turnkeylinux.org>  $(date +"%a, %d %b %Y %H:%M:%S %z")
 
 EOF
-cat $old_changelog >> $new_changelog
+cat "$old_changelog" >> "$new_changelog"
 
 info "Updating turnkey_version and preparing update version package."
-echo "$new_name" > $rootfs/etc/turnkey_version
-$BT/bin/generate-release-deb $new_changelog $rootfs
+echo "$new_name" > "$rootfs/etc/turnkey_version"
+"$BT/bin/generate-release-deb" "$new_changelog" "$rootfs"
 update_patch=$BT/patches/update-release
 conf_script=$update_patch/conf
-mkdir -p $update_patch
-touch $conf_script
-cat > $conf_script <<EOF
+mkdir -p "$update_patch"
+touch "$conf_script"
+cat > "$conf_script" <<EOF
 #!/bin/bash -e
 export DEBIAN_FRONTEND=noninteractive
 apt-get purge -y $old_sec_pkg
 apt-get install -y /$new_sec_pkg*.deb
 rm -rf /$new_sec_pkg*.deb
 EOF
-chmod +x $conf_script
+chmod +x "$conf_script"
 
-mount --bind --make-rslave /proc $rootfs/proc
-mount --bind --make-rslave /sys $rootfs/sys
-mount --bind --make-rslave /dev $rootfs/dev
-mount --bind --make-rslave /run $rootfs/run
+mount --bind --make-rslave /proc "$rootfs/proc"
+mount --bind --make-rslave /sys "$rootfs/sys"
+mount --bind --make-rslave /dev "$rootfs/dev"
+mount --bind --make-rslave /run "$rootfs/run"
 
 info "Applying patches:"
 info " - $update_patch."
-tklpatch-apply-conf $rootfs $conf_script
+tklpatch-apply-conf "$rootfs" "$conf_script"
 info " - $update_patch - done."
-rm -rf $update_patch
+rm -rf "$update_patch"
 for patch in $patches; do
     info " - $patch."
-    [[ ! -d "$patch/overlay" ]] || tklpatch-apply-overlay $patch/overlay
-    tklpatch-apply-conf $rootfs $patch/conf
+    [[ ! -d "$patch/overlay" ]] || tklpatch-apply-overlay "$patch/overlay"
+    tklpatch-apply-conf "$rootfs" "$patch/conf"
     info " - $patch - done."
 done
-tklpatch-apply-cleanup $rootfs
+tklpatch-apply-cleanup "$rootfs"
 
 _umount
 
 info "Cleaning up rootfs and rebuilding new ISO."
-$BT/bin/rootfs-cleanup $rootfs
-$BT/bin/aptconf-tag $rootfs iso
-tklpatch-prepare-cdroot $rootfs $cdroot
-TKLPATCH_ISOLABEL=${appname} tklpatch-geniso $cdroot $new_isofile
+"$BT/bin/rootfs-cleanup" "$rootfs"
+"$BT/bin/aptconf-tag" "$rootfs" iso
+tklpatch-prepare-cdroot "$rootfs" "$cdroot"
+TKLPATCH_ISOLABEL=${appname} tklpatch-geniso "$cdroot" "$new_isofile"
 
 info "Preparing release files."
-$BT/bin/generate-signature $O/$new_isofile
-$BT/bin/generate-manifest $rootfs > $O/$new_name.manifest
-$BT/bin/generate-buildenv iso $appname > $O/$new_name.iso.buildenv
-if [ -e $BT_PROFILES/$appname ]; then
-    mkdir -p $O/$new_name.tklbam
+"$BT/bin/generate-signature" "$O/$new_isofile"
+"$BT/bin/generate-manifest" "$rootfs" > "$O/$new_name.manifest"
+"$BT/bin/generate-buildenv" iso "$appname" > "$O/$new_name.iso.buildenv"
+if [[ -e "$BT_PROFILES/$appname" ]]; then
+    mkdir -p "$O/$new_name.tklbam"
     export PROFILES_CONF=$BT_PROFILES
-    $BT/bin/generate-tklbam-profile $O/$new_name.iso $O/$new_name.tklbam
+    "$BT/bin/generate-tklbam-profile" "$O/$new_name.iso" "$O/$new_name.tklbam"
 fi
 _cleanup
 
-if [ "$publish" == "yes" ]; then
-    $BT/bin/iso-publish $BT_ISOS/$new_name.iso
-    if [[ -z "BT_DEBUG" ]]; then
-        rm -rf $BT_ISOS/$name.iso*
-        rm -rf $BT_ISOS/$new_name*
+if [[ "$publish" == "yes" ]]; then
+    "$BT/bin/iso-publish" "$BT_ISOS/$new_name.iso"
+    if [[ -z "$BT_DEBUG" ]]; then
+        rm -rf "$BT_ISOS/$name.iso*"
+        rm -rf "${BT_ISOS:?}/${new_name:?}*"
     fi
 fi
